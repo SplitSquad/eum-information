@@ -379,4 +379,9 @@ public class InformationService {
                 "total", total
         ));
     }
+
+    /*public ResponseEntity<?> recommendInfo(String token) {
+        //info_preferences
+        User user = verifyToken
+    }*/
 }

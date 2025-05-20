@@ -72,4 +72,10 @@ public class InformationController {
                                             long userId ,int page, int size){
         return informationService.getBookmarking(token, userId, page, size);
     }
+
+    /*@GetMapping("/recommendation")
+    public ResponseEntity<?> recommendInfo(@RequestHeader("Authorization") String token){
+        return informationService.recommendInfo(token);
+    }*/
+
 }

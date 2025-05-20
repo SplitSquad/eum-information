@@ -46,3 +46,13 @@ cloud:
     s3:
       bucketName: ${S3_BUCKET_NAME}
 
+eureka:
+  client:
+    register-with-eureka: true
+    fetch-registry: true
+    service-url:
+      defaultZone: ${EUREKA_IP}
+
+
+ai:
+  url: ${AI_IP}

@@ -1,11 +1,16 @@
 package com.information.service;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.information.dto.InformationReqDto;
 import com.information.dto.InformationResDto;
 import com.information.entity.*;
 import com.information.repository.*;
 import com.information.entity.*;
 import com.information.repository.*;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.*;
+import org.springframework.web.client.RestTemplate;
 import util.JwtUtil;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import jakarta.transaction.Transactional;
@@ -14,7 +19,6 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
-import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -32,6 +36,9 @@ public class InformationService {
     private final TranslationService translationService;
     private final AwsS3Service awsS3Service;
     private final JwtUtil jwtUtil;
+
+    @Value("${ai.url}")
+    private String aiUrl;
 
     public String extractKeyFromUrl(String url) {
         return url.substring(url.lastIndexOf("/") + 1);  // 맨 마지막 파일명만 추출
@@ -320,10 +327,10 @@ public class InformationService {
         Sort sortOption;
         switch(sort) {
             case "views":
-                sortOption = Sort.by(Sort.Direction.DESC, "views");
+                sortOption = Sort.by(Sort.Direction.DESC, "information.views");
                 break;
             default:
-                sortOption = Sort.by(Sort.Direction.DESC, "createdAt");
+                sortOption = Sort.by(Sort.Direction.DESC, "information.createdAt");
                 break;
         }
 
@@ -381,7 +388,43 @@ public class InformationService {
     }
 
     /*public ResponseEntity<?> recommendInfo(String token) {
-        //info_preferences
-        User user = verifyToken
+        Optional<User> user = verifyToken(token);
+        if (user.isEmpty()) {
+            return ResponseEntity.badRequest().body("유효하지 않은 토큰");
+        }
+
+        long userId = user.get().getUserId();
+
+        String url = aiUrl + "/user/" + userId + "/preferences";
+
+        RestTemplate restTemplate = new RestTemplate();
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.add("Authorization", token);
+
+        HttpEntity<String> entity = new HttpEntity<>(headers);
+        ResponseEntity<String> response = restTemplate.exchange(url, HttpMethod.GET, entity, String.class);
+
+        if(!response.getStatusCode().is2xxSuccessful()){
+            return ResponseEntity.status(response.getStatusCode()).body("유저 선호도 불러오기 실패");
+        }
+
+        ObjectMapper objectMapper = new ObjectMapper();
+        JsonNode rootNode;
+        try{
+            rootNode = objectMapper.readTree(response.getBody());
+        }catch(JsonProcessingException e){
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("선호도 불러오기 실패");
+        }
+
+        JsonNode infoPreferences = rootNode.path("info_preferences");
+        if(infoPreferences.isMissingNode()){
+            return ResponseEntity.badRequest().body("v 항목이 존재하지 않음");
+        }
+
+        Map<String, Double> preferencesMap = new HashMap<>();
+        infoPreferences.fields().forEachRemaining(field -> {
+            preferencesMap.put(field.getKey(), field.getValue().doubleValue());
+        })
     }*/
 }

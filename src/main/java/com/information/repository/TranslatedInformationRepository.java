@@ -13,7 +13,7 @@ public interface TranslatedInformationRepository extends JpaRepository<Translate
     TranslatedInformation findByInformation_InformationIdAndLanguage(Long informationId, String language);
 
     @Query("SELECT ti FROM TranslatedInformation ti " +
-            "where ti.information.category = '전체' or ti.information.category = :category "+
+            "where (ti.information.category = '전체' or ti.information.category = :category) "+
             "and ti.language = :language " +
             "and ti.title like concat('%', :keyword, '%')")
     Page<TranslatedInformation> findByLanguageAndCategoryAndTitle(

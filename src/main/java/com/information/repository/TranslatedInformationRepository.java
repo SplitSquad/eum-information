@@ -12,8 +12,8 @@ import org.springframework.stereotype.Repository;
 public interface TranslatedInformationRepository extends JpaRepository<TranslatedInformation, Long> {
     TranslatedInformation findByInformation_InformationIdAndLanguage(Long informationId, String language);
 
-    @Query("SELECT ti FROM TranslatedInformation ti " +
-            "where (ti.information.category = '전체' or ti.information.category = :category) "+
+    @Query("select ti from TranslatedInformation ti " +
+            "where (:category = '전체' or ti.information.category = :category) "+
             "and ti.language = :language " +
             "and ti.title like concat('%', :keyword, '%')")
     Page<TranslatedInformation> findByLanguageAndCategoryAndTitle(

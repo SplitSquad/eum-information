@@ -8,6 +8,8 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.util.List;
+
 @Repository
 public interface TranslatedInformationRepository extends JpaRepository<TranslatedInformation, Long> {
     TranslatedInformation findByInformation_InformationIdAndLanguage(Long informationId, String language);
@@ -21,4 +23,19 @@ public interface TranslatedInformationRepository extends JpaRepository<Translate
             @Param("category") String category,
             @Param("keyword") String keyword,
             Pageable pageable);
+
+    @Query(value =
+            "select ti.* from translated_information ti " +
+                    "join information i on i.information_id = ti.information_id " +
+                    "where i.category = :category " +
+                    "and i.created_at >= :sevenDaysAgo " +
+                    "and ti.language = :language " +
+                    "order by rand() " +
+                    "limit :i"
+            , nativeQuery = true)
+    List<TranslatedInformation> findRandomByTagAndLanguageAndRecentDayAndCount(
+            @Param("category") String category,
+            @Param("language") String language,
+            @Param("sevenDaysAgo") String sevenDaysAgo,
+            @Param("i") int i);
 }

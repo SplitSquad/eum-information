@@ -22,6 +22,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.time.LocalDate;
 import java.util.*;
 
 @Service
@@ -68,6 +69,31 @@ public class InformationService {
             if(translatedInformation == null) {
                 continue;
             }
+
+            long state = bookmarkRepository.countByInformation_InformationIdAndUser_UserId
+                    (information.getInformationId(), user.getUserId());
+
+            InformationResDto informationResDto = InformationResDto.builder()
+                    .category(information.getCategory())
+                    .informationId(information.getInformationId())
+                    .views(information.getViews())
+                    .title(translatedInformation.getTitle())
+                    .content(translatedInformation.getContent())
+                    .userName(information.getUser().getName())
+                    .createdAt(information.getCreatedAt())
+                    .isState(state)
+                    .build();
+
+            informationResDtoList.add(informationResDto);
+        }
+        return informationResDtoList;
+    }
+
+    private List<InformationResDto> transInfoToDto(List<TranslatedInformation> transInfoList, User user) {
+        List<InformationResDto> informationResDtoList = new ArrayList<>();
+
+        for(TranslatedInformation translatedInformation : transInfoList) {
+            Information information = translatedInformation.getInformation();
 
             long state = bookmarkRepository.countByInformation_InformationIdAndUser_UserId
                     (information.getInformationId(), user.getUserId());
@@ -342,25 +368,8 @@ public class InformationService {
 
         long total = translatedInformationList.getTotalElements();
 
-        List<InformationResDto> informationList = new ArrayList<>();
-        for(TranslatedInformation translatedInformation : translatedInformationList){
-            Information information = translatedInformation.getInformation();
+        List<InformationResDto> informationList = transInfoToDto(translatedInformationList.getContent(), user.get());
 
-            long state = bookmarkRepository.countByInformation_InformationIdAndUser_UserId
-                    (information.getInformationId(), user.get().getUserId());
-
-            InformationResDto informationResDto = InformationResDto.builder()
-                    .category(information.getCategory())
-                    .informationId(information.getInformationId())
-                    .views(information.getViews())
-                    .title(translatedInformation.getTitle())
-                    .content(translatedInformation.getContent())
-                    .userName(information.getUser().getName())
-                    .createdAt(information.getCreatedAt())
-                    .isState(state)
-                    .build();
-            informationList.add(informationResDto);
-        }
         return ResponseEntity.ok(Map.of(
                 "informationList", informationList,
                 "total", total
@@ -387,7 +396,7 @@ public class InformationService {
         ));
     }
 
-    /*public ResponseEntity<?> recommendInfo(String token) {
+    public ResponseEntity<?> recommendInfo(String token) {
         Optional<User> user = verifyToken(token);
         if (user.isEmpty()) {
             return ResponseEntity.badRequest().body("유효하지 않은 토큰");
@@ -425,6 +434,65 @@ public class InformationService {
         Map<String, Double> preferencesMap = new HashMap<>();
         infoPreferences.fields().forEachRemaining(field -> {
             preferencesMap.put(field.getKey(), field.getValue().doubleValue());
-        })
-    }*/
+        });
+
+        List<Map.Entry<String, Double>> sortedTag = preferencesMap.entrySet().stream()
+                .sorted(Map.Entry.<String, Double>comparingByValue().reversed()).toList();
+
+        Map.Entry<String, Double> bestTag = sortedTag.get(0);
+        Map.Entry<String, Double> secondTag = sortedTag.get(1);
+        Map.Entry<String, Double> thirdTag = sortedTag.get(2);
+
+        String language = user.get().getLanguage();
+        String sevenDaysAgo = LocalDate.now().minusDays(7).toString();
+
+        List<List<InformationResDto>> informationResDtoList = new ArrayList<>();
+
+        if(bestTag.getValue() >= 0.9){
+            List<TranslatedInformation> infoList = translatedInformationRepository
+                    .findRandomByTagAndLanguageAndRecentDayAndCount(
+                            bestTag.getKey(), language, sevenDaysAgo, 2
+                    );
+
+            List<InformationResDto> informationDto = transInfoToDto(infoList, user.get());
+            informationResDtoList.add(informationDto);
+
+            infoList = translatedInformationRepository
+                    .findRandomByTagAndLanguageAndRecentDayAndCount(
+                            secondTag.getKey(), language, sevenDaysAgo, 1
+                    );
+
+            informationDto = transInfoToDto(infoList, user.get());
+            informationResDtoList.add(informationDto);
+        }
+        else{
+            List<TranslatedInformation> infoList = translatedInformationRepository
+                    .findRandomByTagAndLanguageAndRecentDayAndCount(
+                            bestTag.getKey(), language, sevenDaysAgo, 1
+                    );
+
+            List<InformationResDto> informationDto = transInfoToDto(infoList, user.get());
+            informationResDtoList.add(informationDto);
+
+            infoList = translatedInformationRepository
+                    .findRandomByTagAndLanguageAndRecentDayAndCount(
+                            secondTag.getKey(), language, sevenDaysAgo, 1
+                    );
+
+            informationDto = transInfoToDto(infoList, user.get());
+            informationResDtoList.add(informationDto);
+
+            infoList = translatedInformationRepository
+                    .findRandomByTagAndLanguageAndRecentDayAndCount(
+                            thirdTag.getKey(), language, sevenDaysAgo, 1
+                    );
+
+            informationDto = transInfoToDto(infoList, user.get());
+            informationResDtoList.add(informationDto);
+        }
+        return ResponseEntity.ok(Map.of(
+                "informationList", informationResDtoList,
+                "analysis", preferencesMap
+        ));
+    }
 }

@@ -51,6 +51,8 @@ dependencies {
 
     implementation 'org.apache.kafka:kafka-streams'
     implementation 'org.springframework.kafka:spring-kafka'
+
+    implementation 'com.google.guava:guava:32.1.2-jre' // rate 리미터
 }
 
 dependencyManagement {

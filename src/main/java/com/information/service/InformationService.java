@@ -21,6 +21,8 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
+import util.TranslationJob;
+import util.TranslationQueue;
 
 import java.time.LocalDate;
 import java.util.*;
@@ -34,9 +36,11 @@ public class InformationService {
     private final TranslatedInformationRepository translatedInformationRepository;
     private final UserRepository userRepository;
 
-    private final TranslationService translationService;
+    private final TranslationQueue translationQueue;
     private final AwsS3Service awsS3Service;
     private final JwtUtil jwtUtil;
+
+
 
     @Value("${ai.url}")
     private String aiUrl;
@@ -143,8 +147,7 @@ public class InformationService {
             }
         }
 
-
-        translationService.translateInformation(information, informationReqDto, null);
+        translationQueue.enqueue(new TranslationJob(information, informationReqDto, null));
 
         InformationResDto informationResDto = InformationResDto.builder()
                 .category(informationReqDto.getCategory())
@@ -334,7 +337,7 @@ public class InformationService {
             }
         }
 
-        translationService.translateInformation(information, informationReqDto, informationId);
+        translationQueue.enqueue(new TranslationJob(information, informationReqDto, informationId));
 
         InformationResDto informationResDto = InformationResDto.builder()
                 .content(informationReqDto.getContent())
@@ -428,7 +431,7 @@ public class InformationService {
 
         JsonNode infoPreferences = rootNode.path("info_preferences");
         if(infoPreferences.isMissingNode()){
-            return ResponseEntity.badRequest().body("v 항목이 존재하지 않음");
+            return ResponseEntity.badRequest().body("info_preferences 항목이 존재하지 않음");
         }
 
         Map<String, Double> preferencesMap = new HashMap<>();

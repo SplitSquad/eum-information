@@ -17,6 +17,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
+import util.TranslationRateLimiter;
 
 import java.util.*;
 
@@ -33,9 +34,10 @@ public class TranslationService {
 
     private final RestTemplate restTemplate = new RestTemplate();
 
+    private final TranslationRateLimiter rateLimiter;
+
     private final TranslatedInformationRepository translatedInformationRepository;
 
-    @Async
     public void translateInformation(Information information, InformationReqDto informationReqDto,
                                      Long informationId) throws JsonProcessingException {
         for (int i = 0; i < targetLanguage.length; i++) { // 9개 언어로 번역해서 저장
@@ -72,6 +74,9 @@ public class TranslationService {
 
     public String translate(String text, String sourceLang, String targetLang) {
         try {
+
+            rateLimiter.acquire(); // 속도 제한
+
             String url = API_URL + "?key=" + apiKey;
 
             Map<String, Object> body = new HashMap<>();
@@ -104,7 +109,7 @@ public class TranslationService {
         return mapper.writeValueAsString(root);
     }
 
-    private void translateTextNodesRecursively(JsonNode node, String fromLang, String toLang) {
+    private void translateTextNodesRecursively(JsonNode node, String fromLang, String toLang) { // { {} } 이런 구조도 번역하기 위함
         if (node.isObject()) {
             ObjectNode obj = (ObjectNode) node;
 
@@ -117,7 +122,7 @@ public class TranslationService {
                 }
             }
 
-            // 모든 필드에 대해 재귀 호출
+            // 모든 필드에 대해 재귀 호출 -
             Iterator<Map.Entry<String, JsonNode>> fields = obj.fields();
             while (fields.hasNext()) {
                 Map.Entry<String, JsonNode> entry = fields.next();
@@ -131,29 +136,3 @@ public class TranslationService {
         }
     }
 }
-    /*public Optional<String> translate(String text, String sourceLang, String targetLang) {
-        RestTemplate restTemplate = new RestTemplate();
-
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
-
-        MultiValueMap<String, String> body = new LinkedMultiValueMap<>();
-        body.add("auth_key", apiKey);
-        body.add("text", text);
-        body.add("source_lang", sourceLang.toUpperCase()); // ex: KO
-        body.add("target_lang", targetLang.toUpperCase()); // ex: EN
-
-        HttpEntity<MultiValueMap<String, String>> request = new HttpEntity<>(body, headers);
-
-        try {
-            ResponseEntity<Map> response = restTemplate.postForEntity(API_URL, request, Map.class);
-            Map<String, Object> result = response.getBody();
-
-            List<Map<String, String>> translations = (List<Map<String, String>>) result.get("translations");
-            return Optional.of(translations.get(0).get("text"));
-        } catch (Exception e) {
-            e.printStackTrace();
-            return Optional.empty();
-        }
-    }
-}*/

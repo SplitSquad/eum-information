@@ -1,4 +1,4 @@
-name: information CI to ECR
+name: Information CI to ECR
 on:
   push:
     branches:
@@ -40,7 +40,7 @@ jobs:
           docker tag $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG $ECR_REGISTRY/$ECR_REPOSITORY:latest
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
-      - name: Update manifest repository
+      - name: Update helm values in manifest repository
         env:
           ECR_REGISTRY: 879657431997.dkr.ecr.ap-northeast-2.amazonaws.com
           ECR_REPOSITORY: eum-information
@@ -55,16 +55,17 @@ jobs:
           # 디렉토리 구조 확인 (디버깅 용도)
           echo "매니페스트 레포지토리 디렉토리 구조:"
           ls -la
-          # eum-backend/information 디렉토리로 이동 및 deployment.yaml 파일 업데이트
-          cd eum-backend/information || { echo "eum-backend/information 디렉토리가 없습니다"; exit 1; }
-          # deployment.yaml 파일이 있는지 확인
-          if [ -f "deployment.yaml" ]; then
-            echo "deployment.yaml 파일 발견 - 이미지 태그 업데이트 중..."
-            sed -i "s|image: ${ECR_REGISTRY}/${ECR_REPOSITORY}:.*|image: ${ECR_REGISTRY}/${ECR_REPOSITORY}:${IMAGE_TAG}|g" deployment.yaml
-            echo "업데이트된 이미지 태그:"
-            grep -A1 "image:" deployment.yaml
+          # helm-charts/eum-backend 디렉토리로 이동 및 values.yaml 파일 업데이트
+          cd helm-charts/eum-backend || { echo "helm-charts/eum-backend 디렉토리가 없습니다"; exit 1; }
+          # values.yaml 파일이 있는지 확인
+          if [ -f "values.yaml" ]; then
+            echo "values.yaml 파일 발견 - information 서비스 이미지 태그 업데이트 중..."
+            # information 서비스의 이미지 태그 업데이트
+            sed -i "/^  information:/,/^  [a-zA-Z]/s|tag: .*|tag: ${IMAGE_TAG}|" values.yaml
+            echo "업데이트된 information 서비스 이미지 태그:"
+            sed -n '/^  information:/,/^  [a-zA-Z]/p' values.yaml | grep "tag:"
           else
-            echo "ERROR: deployment.yaml 파일이 없습니다!"
+            echo "ERROR: values.yaml 파일이 없습니다!"
             echo "디렉토리 내용:"
             ls -la
             exit 1
@@ -76,5 +77,5 @@ jobs:
           git add .
           git commit -m "Update information service image to ${IMAGE_TAG}"
           git push
-          echo "매니페스트 레포지토리 업데이트 완료: ${ECR_REGISTRY}/${ECR_REPOSITORY}:${IMAGE_TAG}"
+          echo "Helm values 업데이트 완료: ${ECR_REGISTRY}/${ECR_REPOSITORY}:${IMAGE_TAG}"
           echo "ArgoCD가 변경사항을 감지하여 자동으로 배포할 예정입니다."
